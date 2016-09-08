@@ -1,5 +1,5 @@
 # carousel
-Animated card carousel for selecting arcade games on linux desktop or raspberry pi
+An animated card carousel for selecting arcade games on linux or raspberry pi
 
 I wanted a simple arcade selection interface for my PiPlay.  This program
 displays one image for each game in an animated carousel.  The user moves the
@@ -9,7 +9,7 @@ will kick in after a configured amount of inactivity.  It uses SDL2.
 ## How it works
 
 The program reads a carousel.cfg file which defines a few config parameters and
-the master list of emulators and cards.  Each emulator defined a command line
+the master list of emulators and cards.  Each emulator defines a command line
 pattern which is used to launch the emulator.  Each card must specify the
 emulator name, an image file (.bmp) and the name of the rom that will replace
 the %s in the emulator's command line pattern.  Once a card is selected, the
