@@ -19,14 +19,17 @@ carousel when the emulator exits.
 
 ## Build
 
-`
-    cd carousel
-    mkdir out
-    cd out
-    cmake ..
-    make
-    make install
-`
+`   cd carousel`
+
+`   mkdir out`
+
+`   cd out`
+
+`   cmake ..`
+
+`   make`
+
+`   make install`
 
 ## Run
 
