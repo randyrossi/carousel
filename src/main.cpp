@@ -294,9 +294,9 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
       case SDL_KEYDOWN:
-        next_saver = last_tick + carousel.timeout * 1000;
-        screensaver = false;
-
+        if (screensaver) {
+           break;
+        }
         if (!carousel.reverse_keys) {
           switch (ke->keysym.sym) {
           case SDLK_RIGHT:
@@ -330,8 +330,6 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
         }
         break;
       case SDL_KEYUP:
-        next_saver = last_tick + carousel.timeout * 1000;
-        screensaver = false;
 
         switch (ke->keysym.sym) {
         case SDLK_ESCAPE:
@@ -339,20 +337,23 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
           rc = 1;
           break;
         case SDLK_RETURN:
-          selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
+          // Don't process select if we are waking up from saver
+          if (!screensaver) {
+            selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
                      carousel.all_cards.size();
 
-          last_index_file.open("/tmp/carousel.idx", std::ofstream::out);
-          if (!last_index_file.fail()) {
-            last_index_file << selected;
-          }
-          last_index_file.close();
+            last_index_file.open("/tmp/carousel.idx", std::ofstream::out);
+            if (!last_index_file.fail()) {
+              last_index_file << selected;
+            }
+            last_index_file.close();
 
-          emu = carousel.all_emulators[carousel.all_cards[selected].emu];
-          snprintf (cmd, 512, emu.cmd.c_str(), carousel.all_cards[selected].rom.c_str());
-          std::cout << cmd << std::endl;
-          rc = 0;
-          ended = true;
+            emu = carousel.all_emulators[carousel.all_cards[selected].emu];
+            snprintf (cmd, 512, emu.cmd.c_str(), carousel.all_cards[selected].rom.c_str());
+            std::cout << cmd << std::endl;
+            rc = 0;
+            ended = true;
+          }
           break;
         default:
           break;
@@ -385,6 +386,14 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
             break;
           }
         }
+
+        // Not in screen saver any more.
+        next_saver = last_tick + carousel.timeout * 1000;
+        if (screensaver) {
+           dirty = true;
+        }
+        screensaver = false;
+
         break;
       default:
         break;
