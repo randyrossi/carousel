@@ -357,7 +357,6 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             }
           }
           break;
-        // P1 fire
         case SDL_MOUSEBUTTONUP:
           ended = select_game(carousel, screensaver);
           rc = 0;
@@ -375,6 +374,8 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             // Coin p1 or p2
             case SDLK_5:
             case SDLK_6:
+            // P1 fire
+            case SDLK_LCTRL:
             // P2 fire
             case SDLK_a:
               ended = select_game(carousel, screensaver);
