@@ -10,29 +10,29 @@
 #include "carousel.h"
 #include "res_path.h"
 
-int rendering_loop(carousel::Carousel &, SDL_Renderer *);
+int rendering_loop(carousel::Carousel&, SDL_Renderer*);
 
-SDL_Texture *LoadTexture(SDL_Renderer *ren, std::string file) {
+SDL_Texture* LoadTexture(SDL_Renderer* ren, std::string file) {
   std::string imagePath = carousel::GetResourcePath() + file;
-  SDL_Surface *bmp = SDL_LoadBMP(imagePath.c_str());
+  SDL_Surface* bmp = SDL_LoadBMP(imagePath.c_str());
   if (bmp == NULL) {
-    std::cerr << "SDL_LoadBMP Error: " << file << "," << SDL_GetError() << std::endl;
+    std::cerr << "SDL_LoadBMP Error: " << file << "," << SDL_GetError()
+              << std::endl;
     return NULL;
   }
 
-  SDL_Texture *tex = SDL_CreateTextureFromSurface(ren, bmp);
+  SDL_Texture* tex = SDL_CreateTextureFromSurface(ren, bmp);
   SDL_FreeSurface(bmp);
   if (tex == NULL) {
-    std::cerr << "SDL_CreateTextureFromSurface Error: " << file << "," << SDL_GetError()
-              << std::endl;
+    std::cerr << "SDL_CreateTextureFromSurface Error: " << file << ","
+              << SDL_GetError() << std::endl;
     return NULL;
   }
 
   return tex;
 }
 
-int main(int, char **) {
-
+int main(int, char**) {
   carousel::Carousel carousel;
   if (!carousel.ParseConfig()) {
     std::cerr << "Could not parse config file" << std::endl;
@@ -55,7 +55,8 @@ int main(int, char **) {
 
     if (r != 0) {
       // In case of error...
-      std::cerr << "Could not get display mode for video display " << i <<"," << SDL_GetError();
+      std::cerr << "Could not get display mode for video display " << i << ","
+                << SDL_GetError();
       return 1;
     } else {
       // On success, print the current display mode.
@@ -71,7 +72,7 @@ int main(int, char **) {
 
   carousel::InitSound(carousel);
 
-  SDL_Window *win = SDL_CreateWindow("Arcade Menu", 0, 0, carousel.width,
+  SDL_Window* win = SDL_CreateWindow("Arcade Menu", 0, 0, carousel.width,
                                      carousel.height, SDL_WINDOW_SHOWN);
   if (win == NULL) {
     std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
@@ -80,7 +81,7 @@ int main(int, char **) {
     return 1;
   }
 
-  SDL_Renderer *ren = SDL_CreateRenderer(
+  SDL_Renderer* ren = SDL_CreateRenderer(
       win, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
   if (ren == NULL) {
     std::cerr << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
@@ -118,9 +119,13 @@ int main(int, char **) {
   last_index_file.close();
 
   carousel.low_index = start_index - carousel.num_slots / 2;
-  if (carousel.low_index < 0) { carousel.low_index += carousel.all_cards.size(); }
+  if (carousel.low_index < 0) {
+    carousel.low_index += carousel.all_cards.size();
+  }
   carousel.high_index = start_index + carousel.num_slots / 2;
-  if (carousel.high_index >= (int)carousel.all_cards.size()) { carousel.high_index -= (int)carousel.all_cards.size(); }
+  if (carousel.high_index >= (int)carousel.all_cards.size()) {
+    carousel.high_index -= (int)carousel.all_cards.size();
+  }
 
   // Load the first carousel cards.
   int card_index = carousel.low_index;
@@ -128,7 +133,9 @@ int main(int, char **) {
     carousel.carousel_image[i] =
         LoadTexture(ren, carousel.all_cards.at(card_index).image_filename);
     card_index++;
-    if (card_index >= (int)carousel.all_cards.size()) { card_index -= carousel.all_cards.size(); }
+    if (card_index >= (int)carousel.all_cards.size()) {
+      card_index -= carousel.all_cards.size();
+    }
   }
 
   int rc = rendering_loop(carousel, ren);
@@ -148,7 +155,7 @@ int main(int, char **) {
   return rc;
 }
 
-bool move_left(carousel::Carousel &carousel, SDL_Renderer *ren) {
+bool move_left(carousel::Carousel& carousel, SDL_Renderer* ren) {
   carousel.low_index++;
   if (carousel.low_index >= (int)carousel.all_cards.size()) {
     carousel.low_index = 0;
@@ -170,7 +177,7 @@ bool move_left(carousel::Carousel &carousel, SDL_Renderer *ren) {
   return false;
 }
 
-bool move_right(carousel::Carousel &carousel, SDL_Renderer *ren) {
+bool move_right(carousel::Carousel& carousel, SDL_Renderer* ren) {
   carousel.low_index--;
   if (carousel.low_index < 0) {
     carousel.low_index = carousel.all_cards.size() - 1;
@@ -192,7 +199,31 @@ bool move_right(carousel::Carousel &carousel, SDL_Renderer *ren) {
   return false;
 }
 
-int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
+bool select_game(carousel::Carousel& carousel, bool screensaver) {
+  // Don't process select if we are waking up from saver
+  if (!screensaver) {
+    int selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
+                   carousel.all_cards.size();
+
+    std::ofstream last_index_file;
+    last_index_file.open("/tmp/carousel.idx", std::ofstream::out);
+    if (!last_index_file.fail()) {
+      last_index_file << selected;
+    }
+    last_index_file.close();
+
+    carousel::Emulator emu =
+        carousel.all_emulators[carousel.all_cards[selected].emu];
+    char cmd[512];
+    snprintf(cmd, 512, emu.cmd.c_str(),
+             carousel.all_cards[selected].rom.c_str());
+    std::cout << cmd << std::endl;
+    return true;
+  }
+  return false;
+}
+
+int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
   int spin_pos = 0;
   int dir = DIR_NONE;
   int speed = 0;
@@ -217,7 +248,8 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
   while (!ended) {
     // Handle carousel spin.
     if (dir != DIR_NONE) {
-      spin_pos = spin_pos + dir * (sp / carousel.fps * (carousel.initial_speed + speed));
+      spin_pos = spin_pos +
+                 dir * (sp / carousel.fps * (carousel.initial_speed + speed));
       if (spin_pos >= sp || spin_pos <= -sp) {
         if (dir == DIR_LEFT) {
           ended = move_left(carousel, ren);
@@ -258,7 +290,8 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
         SDL_RenderCopy(ren, carousel.background_texture, NULL, NULL);
         for (size_t i = 0; i < render_order.size(); i++) {
           SDL_RenderCopy(ren, carousel.carousel_image[render_order.at(i).index],
-                       NULL, &carousel.carousel_pos[render_order.at(i).index]);
+                         NULL,
+                         &carousel.carousel_pos[render_order.at(i).index]);
         }
       } else {
         // pick a random location for our screen saver img
@@ -284,119 +317,111 @@ int rendering_loop(carousel::Carousel &carousel, SDL_Renderer *ren) {
       dirty = true;
     }
 
-    std::ofstream last_index_file;
-
     SDL_Event event;
-    SDL_KeyboardEvent *ke = (SDL_KeyboardEvent *)&event;
-    int selected;
-    char cmd[512];
-    carousel::Emulator emu;
+    SDL_KeyboardEvent* ke = (SDL_KeyboardEvent*)&event;
     while (SDL_PollEvent(&event)) {
       switch (event.type) {
-      case SDL_KEYDOWN:
-        if (screensaver) {
-           break;
-        }
-        if (!carousel.reverse_keys) {
-          switch (ke->keysym.sym) {
-          case SDLK_RIGHT:
-          case SDLK_g:
-            left_down_repeat = now;
-            left_down = true;
-            break;
-          case SDLK_LEFT:
-          case SDLK_d:
-            right_down_repeat = now;
-            right_down = true;
-            break;
-          default:
+        case SDL_KEYDOWN:
+          if (screensaver) {
             break;
           }
-        } else {
-          switch (ke->keysym.sym) {
-          case SDLK_LEFT:
-          case SDLK_d:
-            left_down_repeat = now;
-            left_down = true;
-            break;
-          case SDLK_RIGHT:
-          case SDLK_g:
-            right_down_repeat = now;
-            right_down = true;
-            break;
-          default:
-            break;
-          }
-        }
-        break;
-      case SDL_KEYUP:
-
-        switch (ke->keysym.sym) {
-        case SDLK_ESCAPE:
-          ended = true;
-          rc = 1;
-          break;
-        case SDLK_RETURN:
-          // Don't process select if we are waking up from saver
-          if (!screensaver) {
-            selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
-                     carousel.all_cards.size();
-
-            last_index_file.open("/tmp/carousel.idx", std::ofstream::out);
-            if (!last_index_file.fail()) {
-              last_index_file << selected;
+          if (!carousel.reverse_keys) {
+            switch (ke->keysym.sym) {
+              case SDLK_RIGHT:
+              case SDLK_g:
+                left_down_repeat = now;
+                left_down = true;
+                break;
+              case SDLK_LEFT:
+              case SDLK_d:
+                right_down_repeat = now;
+                right_down = true;
+                break;
+              default:
+                break;
             }
-            last_index_file.close();
-
-            emu = carousel.all_emulators[carousel.all_cards[selected].emu];
-            snprintf (cmd, 512, emu.cmd.c_str(), carousel.all_cards[selected].rom.c_str());
-            std::cout << cmd << std::endl;
-            rc = 0;
-            ended = true;
+          } else {
+            switch (ke->keysym.sym) {
+              case SDLK_LEFT:
+              case SDLK_d:
+                left_down_repeat = now;
+                left_down = true;
+                break;
+              case SDLK_RIGHT:
+              case SDLK_g:
+                right_down_repeat = now;
+                right_down = true;
+                break;
+              default:
+                break;
+            }
           }
+          break;
+        // P1 fire
+        case SDL_MOUSEBUTTONUP:
+          ended = select_game(carousel, screensaver);
+          rc = 0;
+          break;
+        case SDL_KEYUP:
+          switch (ke->keysym.sym) {
+            case SDLK_ESCAPE:
+              ended = true;
+              rc = 1;
+              break;
+            case SDLK_RETURN:
+            // PLayer 1 or 2
+            case SDLK_1:
+            case SDLK_2:
+            // Coin p1 or p2
+            case SDLK_5:
+            case SDLK_6:
+            // P2 fire
+            case SDLK_a:
+              ended = select_game(carousel, screensaver);
+              rc = 0;
+              break;
+            default:
+              break;
+          }
+
+          if (!carousel.reverse_keys) {
+            switch (ke->keysym.sym) {
+              case SDLK_RIGHT:
+              case SDLK_g:
+                left_down = false;
+                break;
+              case SDLK_LEFT:
+              case SDLK_d:
+                right_down = false;
+                break;
+              default:
+                break;
+            }
+          } else {
+            switch (ke->keysym.sym) {
+              case SDLK_LEFT:
+              case SDLK_d:
+                left_down = false;
+                break;
+              case SDLK_RIGHT:
+              case SDLK_g:
+                right_down = false;
+                break;
+              default:
+                break;
+            }
+          }
+
+          // Not in screen saver any more.
+          next_saver = last_tick + carousel.timeout * 1000;
+          if (screensaver) {
+            dirty = true;
+          }
+          screensaver = false;
+
           break;
         default:
           break;
-        }
-
-        if (!carousel.reverse_keys) {
-          switch (ke->keysym.sym) {
-          case SDLK_RIGHT:
-          case SDLK_g:
-            left_down = false;
-            break;
-          case SDLK_LEFT:
-          case SDLK_d:
-            right_down = false;
-            break;
-          default:
-            break;
-          }
-        } else {
-          switch (ke->keysym.sym) {
-          case SDLK_LEFT:
-          case SDLK_d:
-            left_down = false;
-            break;
-          case SDLK_RIGHT:
-          case SDLK_g:
-            right_down = false;
-            break;
-          default:
-            break;
-          }
-        }
-
-        // Not in screen saver any more.
-        next_saver = last_tick + carousel.timeout * 1000;
-        if (screensaver) {
-           dirty = true;
-        }
-        screensaver = false;
-
-        break;
-      default:
-        break;
       }
     }
 

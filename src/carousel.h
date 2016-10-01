@@ -34,11 +34,11 @@ struct Emulator {
   std::string cmd;
 };
 
-bool SortByY(const carousel::CarouselCard &lhs,
-             const carousel::CarouselCard &rhs);
+bool SortByY(const carousel::CarouselCard& lhs,
+             const carousel::CarouselCard& rhs);
 
 class Carousel {
-public:
+ public:
   int fps;
   int num_slots;
   int initial_speed;
@@ -46,8 +46,8 @@ public:
   bool click;
   int timeout;
 
-  SDL_Texture *background_texture;
-  SDL_Texture *screensaver_texture;
+  SDL_Texture* background_texture;
+  SDL_Texture* screensaver_texture;
   std::vector<SDL_Texture*> carousel_image;
   std::vector<SDL_Rect> carousel_pos;
 
@@ -58,10 +58,10 @@ public:
   int high_index;
 
   // Audio
-  Uint8 *audio_pos; // global pointer to the audio buffer to be played
-  Uint32 audio_len; // remaining length of the sample we have to play
+  Uint8* audio_pos;  // global pointer to the audio buffer to be played
+  Uint32 audio_len;  // remaining length of the sample we have to play
   Uint32 wav_length;
-  Uint8 *wav_buffer;
+  Uint8* wav_buffer;
   SDL_AudioSpec wav_spec;
 
   std::map<std::string, Emulator> all_emulators;
@@ -76,6 +76,6 @@ public:
   bool ParseConfig();
 };
 
-} // namespace carousel
+}  // namespace carousel
 
 #endif

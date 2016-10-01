@@ -36,8 +36,7 @@ Carousel::Carousel()
   }
 }
 
-Carousel::~Carousel() {
-}
+Carousel::~Carousel() {}
 
 void Carousel::SetCarouselPositions(int xoffset) {
   // Largest card is the one in the middle (representing the current selection)

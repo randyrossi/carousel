@@ -8,8 +8,8 @@ namespace carousel {
 /*
  * Get the resource path for resources located in res/subDir
  */
-std::string GetResourcePath(const std::string &subDir = "");
+std::string GetResourcePath(const std::string& subDir = "");
 
-} // namespace carousel
+}  // namespace carousel
 
 #endif

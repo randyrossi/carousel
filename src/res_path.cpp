@@ -5,7 +5,7 @@
 
 namespace carousel {
 
-std::string GetResourcePath(const std::string &subDir) {
+std::string GetResourcePath(const std::string& subDir) {
 #ifdef _WIN32
   const char PATH_SEP = '\\';
 #else
@@ -14,7 +14,7 @@ std::string GetResourcePath(const std::string &subDir) {
   static std::string baseRes;
   if (baseRes.empty()) {
     // SDL_GetBasePath will return NULL if something went wrong
-    char *basePath = SDL_GetBasePath();
+    char* basePath = SDL_GetBasePath();
     if (basePath) {
       baseRes = basePath;
       SDL_free(basePath);
@@ -32,4 +32,4 @@ std::string GetResourcePath(const std::string &subDir) {
   return subDir.empty() ? baseRes : baseRes + subDir + PATH_SEP;
 }
 
-} // namespace carousel
+}  // namespace carousel
