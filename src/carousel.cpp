@@ -18,6 +18,8 @@ Carousel::Carousel()
       reverse_keys(false),
       click(true),
       timeout(1800),
+      mixer("PCM"),
+      mixer_opened(false),
       background_texture(NULL),
       screensaver_texture(NULL),
       volume_texture(NULL),
@@ -165,6 +167,13 @@ bool Carousel::ParseConfig() {
     } else {
       timeout = cfg_timeout;
     }
+  } catch (const libconfig::SettingNotFoundException& nfex) {
+    // ignore
+  }
+
+  // mixer
+  try {
+    cfg.lookupValue("mixer", mixer);
   } catch (const libconfig::SettingNotFoundException& nfex) {
     // ignore
   }

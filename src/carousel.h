@@ -50,6 +50,8 @@ class Carousel {
   bool reverse_keys;
   bool click;
   int timeout;
+  std::string mixer;
+  bool mixer_opened;
 
   SDL_Texture* background_texture;
   SDL_Texture* screensaver_texture;
