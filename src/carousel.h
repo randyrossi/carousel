@@ -6,6 +6,11 @@
 #include <string>
 #include <vector>
 
+#ifdef ALSA_FOUND
+#include <alsa/asoundlib.h>
+#include <alsa/mixer.h>
+#endif
+
 // The percentage of the screen height a full sized card should be.
 #define HOME_HEIGHT_FACTOR 0.75
 
@@ -48,6 +53,7 @@ class Carousel {
 
   SDL_Texture* background_texture;
   SDL_Texture* screensaver_texture;
+  SDL_Texture* volume_texture;
   std::vector<SDL_Texture*> carousel_image;
   std::vector<SDL_Rect> carousel_pos;
 
@@ -56,6 +62,12 @@ class Carousel {
 
   int low_index;
   int high_index;
+
+#ifdef ALSA_FOUND
+  snd_mixer_t *handle;
+  snd_mixer_selem_id_t *sid;
+  snd_mixer_elem_t* elem;
+#endif
 
   // Audio
   Uint8* audio_pos;  // global pointer to the audio buffer to be played

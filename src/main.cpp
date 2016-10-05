@@ -72,6 +72,22 @@ int main(int, char**) {
 
   carousel::InitSound(carousel);
 
+#ifdef ALSA_FOUND
+  const char *card = "default";
+  const char *selem_name = "Master";
+
+  snd_mixer_open(&carousel.handle, 0);
+  snd_mixer_attach(carousel.handle, card);
+  snd_mixer_selem_register(carousel.handle, NULL, NULL);
+  snd_mixer_load(carousel.handle);
+
+  snd_mixer_selem_id_alloca(&carousel.sid);
+  snd_mixer_selem_id_set_index(carousel.sid, 0);
+  snd_mixer_selem_id_set_name(carousel.sid, selem_name);
+
+  carousel.elem = snd_mixer_find_selem(carousel.handle, carousel.sid);
+#endif
+
   SDL_Window* win = SDL_CreateWindow("Arcade Menu", 0, 0, carousel.width,
                                      carousel.height, SDL_WINDOW_SHOWN);
   if (win == NULL) {
@@ -102,6 +118,17 @@ int main(int, char**) {
 
   carousel.screensaver_texture = LoadTexture(ren, "scr_saver.bmp");
   if (carousel.screensaver_texture == NULL) {
+    SDL_DestroyTexture(carousel.background_texture);
+    carousel::DestroySound(carousel);
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+    SDL_Quit();
+    return 1;
+  }
+
+  carousel.volume_texture = LoadTexture(ren, "volume.bmp");
+  if (carousel.volume_texture == NULL) {
+    SDL_DestroyTexture(carousel.screensaver_texture);
     SDL_DestroyTexture(carousel.background_texture);
     carousel::DestroySound(carousel);
     SDL_DestroyRenderer(ren);
@@ -147,6 +174,10 @@ int main(int, char**) {
       SDL_DestroyTexture(carousel.carousel_image[i]);
     }
   }
+
+#ifdef ALSA_FOUND
+  snd_mixer_close(carousel.handle);
+#endif
 
   carousel::DestroySound(carousel);
   SDL_DestroyRenderer(ren);
@@ -245,6 +276,22 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
   uint32_t next_saver = SDL_GetTicks() + carousel.timeout * 1000;
   bool screensaver = false;
 
+  uint32_t next_volume = SDL_GetTicks();
+  bool show_volume = false;
+
+
+#ifdef ALSA_FOUND
+  long min_vol;
+  long max_vol;
+  long volume = 0;
+  snd_mixer_selem_get_playback_volume_range(carousel.elem, &min_vol, &max_vol);
+  snd_mixer_selem_get_playback_volume(
+      carousel.elem,
+      SND_MIXER_SCHN_FRONT_LEFT,
+      &volume);
+  volume = volume / 12 * 12;
+#endif
+
   while (!ended) {
     // Handle carousel spin.
     if (dir != DIR_NONE) {
@@ -303,6 +350,19 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
         SDL_RenderCopy(ren, carousel.screensaver_texture, NULL, &dest);
       }
 
+      if (show_volume) {
+#ifdef ALSA_FOUND
+        SDL_Rect dest;
+        for (int i = 0; i < volume / (max_vol / 12); i++) {
+          dest.x = i * 40;
+          dest.y = 0;
+          dest.w = 32;
+          dest.h = 32;
+          SDL_RenderCopy(ren, carousel.volume_texture, NULL, &dest);
+        }
+#endif
+      }
+
       // Update the screen
       SDL_RenderPresent(ren);
       dirty = false;
@@ -314,6 +374,12 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
     if (now >= next_saver) {
       next_saver = now + 5000;
       screensaver = true;
+      dirty = true;
+    }
+
+    if (now >= next_volume) {
+      // Cancel volume controls
+      show_volume = false;
       dirty = true;
     }
 
@@ -366,6 +432,26 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_ESCAPE:
               ended = true;
               rc = 1;
+              break;
+            case SDLK_UP:
+#ifdef ALSA_FOUND
+              volume+=(max_vol/12); if (volume > max_vol) { volume = max_vol; }
+              snd_mixer_selem_set_playback_volume_all(carousel.elem, volume);
+              carousel::PlayClick(carousel);
+              next_volume = SDL_GetTicks() + 5 * 1000;
+              show_volume = true;
+              dirty = true;
+#endif
+              break;
+            case SDLK_DOWN:
+#ifdef ALSA_FOUND
+              volume-=(max_vol/12); if (volume < 0) { volume = 0; }
+              snd_mixer_selem_set_playback_volume_all(carousel.elem, volume);
+              carousel::PlayClick(carousel);
+              next_volume = SDL_GetTicks() + 5 * 1000;
+              show_volume = true;
+              dirty = true;
+#endif
               break;
             case SDLK_RETURN:
             // PLayer 1 or 2

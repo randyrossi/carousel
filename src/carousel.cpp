@@ -20,10 +20,16 @@ Carousel::Carousel()
       timeout(1800),
       background_texture(NULL),
       screensaver_texture(NULL),
+      volume_texture(NULL),
       width(-1),
       height(-1),
       low_index(0),
       high_index(num_slots - 1),
+#ifdef ALSA_FOUND
+      handle(NULL),
+      sid(NULL),
+      elem(NULL),
+#endif
       audio_pos(NULL),
       audio_len(0),
       wav_length(0),
