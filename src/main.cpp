@@ -73,7 +73,7 @@ int main(int, char**) {
   carousel::InitSound(carousel);
 
 #ifdef ALSA_FOUND
-  const char *card = "default";
+  const char* card = "default";
 
   if (carousel.mixer != "None" && carousel.mixer != "none") {
     snd_mixer_open(&carousel.handle, 0);
@@ -87,7 +87,8 @@ int main(int, char**) {
 
     carousel.elem = snd_mixer_find_selem(carousel.handle, carousel.sid);
     if (carousel.elem == NULL) {
-      std::cerr << "Mixer not found: " << carousel.mixer << ", check config" << std::endl;
+      std::cerr << "Mixer not found: " << carousel.mixer << ", check config"
+                << std::endl;
       carousel::DestroySound(carousel);
       SDL_Quit();
       return 1;
@@ -101,9 +102,9 @@ int main(int, char**) {
   if (win == NULL) {
     std::cerr << "SDL_CreateWindow Error: " << SDL_GetError() << std::endl;
 #ifdef ALSA_FOUND
-  if (carousel.mixer_opened) {
-    snd_mixer_close(carousel.handle);
-  }
+    if (carousel.mixer_opened) {
+      snd_mixer_close(carousel.handle);
+    }
 #endif
     carousel::DestroySound(carousel);
     SDL_Quit();
@@ -115,9 +116,9 @@ int main(int, char**) {
   if (ren == NULL) {
     std::cerr << "SDL_CreateRenderer Error: " << SDL_GetError() << std::endl;
 #ifdef ALSA_FOUND
-  if (carousel.mixer_opened) {
-    snd_mixer_close(carousel.handle);
-  }
+    if (carousel.mixer_opened) {
+      snd_mixer_close(carousel.handle);
+    }
 #endif
     carousel::DestroySound(carousel);
     SDL_DestroyWindow(win);
@@ -128,9 +129,9 @@ int main(int, char**) {
   carousel.background_texture = LoadTexture(ren, "background.bmp");
   if (carousel.background_texture == NULL) {
 #ifdef ALSA_FOUND
-  if (carousel.mixer_opened) {
-    snd_mixer_close(carousel.handle);
-  }
+    if (carousel.mixer_opened) {
+      snd_mixer_close(carousel.handle);
+    }
 #endif
     carousel::DestroySound(carousel);
     SDL_DestroyRenderer(ren);
@@ -142,9 +143,9 @@ int main(int, char**) {
   carousel.screensaver_texture = LoadTexture(ren, "scr_saver.bmp");
   if (carousel.screensaver_texture == NULL) {
 #ifdef ALSA_FOUND
-  if (carousel.mixer_opened) {
-    snd_mixer_close(carousel.handle);
-  }
+    if (carousel.mixer_opened) {
+      snd_mixer_close(carousel.handle);
+    }
 #endif
     SDL_DestroyTexture(carousel.background_texture);
     carousel::DestroySound(carousel);
@@ -157,9 +158,9 @@ int main(int, char**) {
   carousel.volume_texture = LoadTexture(ren, "volume.bmp");
   if (carousel.volume_texture == NULL) {
 #ifdef ALSA_FOUND
-  if (carousel.mixer_opened) {
-    snd_mixer_close(carousel.handle);
-  }
+    if (carousel.mixer_opened) {
+      snd_mixer_close(carousel.handle);
+    }
 #endif
     SDL_DestroyTexture(carousel.screensaver_texture);
     SDL_DestroyTexture(carousel.background_texture);
@@ -313,20 +314,22 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
   uint32_t next_volume = SDL_GetTicks();
   bool show_volume = false;
 
-
 #ifdef ALSA_FOUND
   long min_vol;
   long max_vol;
   long volume = 0;
   long vol_step = 0;
   if (carousel.mixer_opened) {
-    snd_mixer_selem_get_playback_volume_range(carousel.elem, &min_vol, &max_vol);
-    snd_mixer_selem_get_playback_volume(
-        carousel.elem,
-        SND_MIXER_SCHN_FRONT_LEFT,
-        &volume);
-    if (volume > max_vol) { volume = max_vol; }
-    if (volume < min_vol) { volume = min_vol; }
+    snd_mixer_selem_get_playback_volume_range(carousel.elem, &min_vol,
+                                              &max_vol);
+    snd_mixer_selem_get_playback_volume(carousel.elem,
+                                        SND_MIXER_SCHN_FRONT_LEFT, &volume);
+    if (volume > max_vol) {
+      volume = max_vol;
+    }
+    if (volume < min_vol) {
+      volume = min_vol;
+    }
     vol_step = (max_vol - min_vol) / 12;
   }
 #endif
@@ -475,9 +478,12 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_UP:
 #ifdef ALSA_FOUND
               if (carousel.mixer_opened) {
-                volume+=vol_step; if (volume > max_vol) { volume = max_vol; }
+                volume += vol_step;
+                if (volume > max_vol) {
+                  volume = max_vol;
+                }
                 snd_mixer_selem_set_playback_volume_all(carousel.elem, volume);
-                carousel::PlayClick(carousel);
+                carousel::PlayBlip(carousel);
                 next_volume = SDL_GetTicks() + 5 * 1000;
                 show_volume = true;
                 dirty = true;
@@ -487,9 +493,12 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_DOWN:
 #ifdef ALSA_FOUND
               if (carousel.mixer_opened) {
-                volume-=vol_step; if (volume < min_vol) { volume = min_vol; }
+                volume -= vol_step;
+                if (volume < min_vol) {
+                  volume = min_vol;
+                }
                 snd_mixer_selem_set_playback_volume_all(carousel.elem, volume);
-                carousel::PlayClick(carousel);
+                carousel::PlayBlip(carousel);
                 next_volume = SDL_GetTicks() + 5 * 1000;
                 show_volume = true;
                 dirty = true;

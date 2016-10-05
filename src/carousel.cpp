@@ -34,8 +34,10 @@ Carousel::Carousel()
 #endif
       audio_pos(NULL),
       audio_len(0),
-      wav_length(0),
-      wav_buffer(NULL) {
+      click_wav_length(0),
+      click_wav_buffer(NULL),
+      blip_wav_length(0),
+      blip_wav_buffer(NULL) {
   carousel_image.resize(num_slots);
   carousel_pos.resize(num_slots);
 

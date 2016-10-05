@@ -13,15 +13,32 @@ int InitSound(carousel::Carousel& carousel) {
   }
   std::string snd = carousel::GetResourcePath() + "click.wav";
 
-  if (SDL_LoadWAV(snd.c_str(), &carousel.wav_spec, &carousel.wav_buffer,
-                  &carousel.wav_length) == NULL) {
+  if (SDL_LoadWAV(snd.c_str(), &carousel.click_wav_spec,
+                  &carousel.click_wav_buffer,
+                  &carousel.click_wav_length) == NULL) {
     return 1;
   }
 
-  carousel.wav_spec.callback = AudioWriteCallback;
-  carousel.wav_spec.userdata = &carousel;
+  carousel.click_wav_spec.callback = AudioWriteCallback;
+  carousel.click_wav_spec.userdata = &carousel;
 
-  if (SDL_OpenAudio(&carousel.wav_spec, NULL) < 0) {
+  if (SDL_OpenAudio(&carousel.click_wav_spec, NULL) < 0) {
+    fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
+    return 1;
+  }
+
+  snd = carousel::GetResourcePath() + "blip.wav";
+
+  if (SDL_LoadWAV(snd.c_str(), &carousel.blip_wav_spec,
+                  &carousel.blip_wav_buffer,
+                  &carousel.blip_wav_length) == NULL) {
+    return 1;
+  }
+
+  carousel.blip_wav_spec.callback = AudioWriteCallback;
+  carousel.blip_wav_spec.userdata = &carousel;
+
+  if (SDL_OpenAudio(&carousel.blip_wav_spec, NULL) < 0) {
     fprintf(stderr, "Couldn't open audio: %s\n", SDL_GetError());
     return 1;
   }
@@ -33,8 +50,17 @@ void PlayClick(carousel::Carousel& carousel) {
   if (!carousel.click) {
     return;
   }
-  carousel.audio_pos = carousel.wav_buffer;
-  carousel.audio_len = carousel.wav_length;
+  carousel.audio_pos = carousel.click_wav_buffer;
+  carousel.audio_len = carousel.click_wav_length;
+  SDL_PauseAudio(0);
+}
+
+void PlayBlip(carousel::Carousel& carousel) {
+  if (!carousel.click) {
+    return;
+  }
+  carousel.audio_pos = carousel.blip_wav_buffer;
+  carousel.audio_len = carousel.blip_wav_length;
   SDL_PauseAudio(0);
 }
 
@@ -50,7 +76,8 @@ void DestroySound(carousel::Carousel& carousel) {
     return;
   }
   SDL_CloseAudio();
-  SDL_FreeWAV(carousel.wav_buffer);
+  SDL_FreeWAV(carousel.click_wav_buffer);
+  SDL_FreeWAV(carousel.blip_wav_buffer);
 }
 
 void AudioWriteCallback(void* userdata, Uint8* stream, int len) {

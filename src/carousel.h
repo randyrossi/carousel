@@ -66,17 +66,20 @@ class Carousel {
   int high_index;
 
 #ifdef ALSA_FOUND
-  snd_mixer_t *handle;
-  snd_mixer_selem_id_t *sid;
+  snd_mixer_t* handle;
+  snd_mixer_selem_id_t* sid;
   snd_mixer_elem_t* elem;
 #endif
 
   // Audio
   Uint8* audio_pos;  // global pointer to the audio buffer to be played
   Uint32 audio_len;  // remaining length of the sample we have to play
-  Uint32 wav_length;
-  Uint8* wav_buffer;
-  SDL_AudioSpec wav_spec;
+  Uint32 click_wav_length;
+  Uint8* click_wav_buffer;
+  Uint32 blip_wav_length;
+  Uint8* blip_wav_buffer;
+  SDL_AudioSpec click_wav_spec;
+  SDL_AudioSpec blip_wav_spec;
 
   std::map<std::string, Emulator> all_emulators;
   std::vector<CarouselCard> all_cards;
