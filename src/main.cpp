@@ -318,14 +318,17 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
   long min_vol;
   long max_vol;
   long volume = 0;
+  long vol_step = 0;
   if (carousel.mixer_opened) {
     snd_mixer_selem_get_playback_volume_range(carousel.elem, &min_vol, &max_vol);
     snd_mixer_selem_get_playback_volume(
         carousel.elem,
         SND_MIXER_SCHN_FRONT_LEFT,
         &volume);
+    if (volume > max_vol) { volume = max_vol; }
+    if (volume < min_vol) { volume = min_vol; }
+    vol_step = (max_vol - min_vol) / 12;
   }
-  volume = volume / 12 * 12;
 #endif
 
   while (!ended) {
@@ -389,7 +392,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       if (show_volume) {
 #ifdef ALSA_FOUND
         SDL_Rect dest;
-        for (int i = 0; i < volume / (max_vol / 12); i++) {
+        for (int i = 0; i < (volume - min_vol) / vol_step; i++) {
           dest.x = i * 40;
           dest.y = 0;
           dest.w = 32;
@@ -472,7 +475,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_UP:
 #ifdef ALSA_FOUND
               if (carousel.mixer_opened) {
-                volume+=(max_vol/12); if (volume > max_vol) { volume = max_vol; }
+                volume+=vol_step; if (volume > max_vol) { volume = max_vol; }
                 snd_mixer_selem_set_playback_volume_all(carousel.elem, volume);
                 carousel::PlayClick(carousel);
                 next_volume = SDL_GetTicks() + 5 * 1000;
@@ -484,7 +487,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_DOWN:
 #ifdef ALSA_FOUND
               if (carousel.mixer_opened) {
-                volume-=(max_vol/12); if (volume < 0) { volume = 0; }
+                volume-=vol_step; if (volume < min_vol) { volume = min_vol; }
                 snd_mixer_selem_set_playback_volume_all(carousel.elem, volume);
                 carousel::PlayClick(carousel);
                 next_volume = SDL_GetTicks() + 5 * 1000;
