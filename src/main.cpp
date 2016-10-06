@@ -199,6 +199,8 @@ int main(int, char**) {
     }
   }
 
+  SDL_ShowCursor(0);
+
   int rc = rendering_loop(carousel, ren);
 
   // Cleanup
