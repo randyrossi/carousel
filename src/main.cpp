@@ -302,7 +302,6 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
   bool right_down = false;
   uint32_t left_down_repeat = 0;
   uint32_t right_down_repeat = 0;
-  bool lift_after_repeat = false;
 
   std::vector<carousel::CarouselCard> render_order;
   uint32_t frame_delay = 1000 / carousel.fps;
@@ -437,22 +436,21 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             ignore_first_moust_motion = false;
             break;
           }
-          lift_after_repeat = true;
           if (!carousel.reverse_keys) {
-            if (mme->xrel < 0 && now > left_down_repeat + 200) {
-              left_down_repeat = now;
-              left_down = true;
-            } else if (mme->xrel > 0 && now > right_down_repeat + 200) {
-              right_down_repeat = now;
-              right_down = true;
+            if (mme->xrel < 0) {
+              speed = std::min(-mme->xrel / 10, MAX_SPEED);
+              dir = DIR_LEFT;
+            } else if (mme->xrel > 0) {
+              speed = std::min(mme->xrel / 10, MAX_SPEED);
+              dir = DIR_RIGHT;
             }
           } else {
-            if (mme->xrel < 0 && now > right_down_repeat + 200) {
-              right_down_repeat = now;
-              right_down = true;
-            } else if (mme->xrel > 0 && now > left_down_repeat + 200) {
-              left_down_repeat = now;
-              left_down = true;
+            if (mme->xrel < 0) {
+              speed = std::min(-mme->xrel / 10, MAX_SPEED);
+              dir = DIR_RIGHT;
+            } else if (mme->xrel > 0) {
+              speed = std::min(mme->xrel / 10, MAX_SPEED);
+              dir = DIR_LEFT;
             }
           }
           break;
@@ -597,9 +595,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
 
     // If left is down and it's time to repeat, do it now.
     if (left_down && now >= left_down_repeat) {
-      if (!lift_after_repeat) {
-        left_down_repeat = left_down_repeat + 1000;
-      }
+      left_down_repeat = left_down_repeat + 1000;
       dirty = true;
       if (dir == DIR_LEFT) {
         // Already moving in that dir. Increase speed.
@@ -611,13 +607,8 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       } else {
         dir = DIR_LEFT;
       }
-      if (lift_after_repeat) {
-        left_down = false;
-      }
     } else if (right_down && now >= right_down_repeat) {
-      if (!lift_after_repeat) {
-        right_down_repeat = right_down_repeat + 1000;
-      }
+      right_down_repeat = right_down_repeat + 1000;
       dirty = true;
       if (dir == DIR_RIGHT) {
         // Already moving in that dir. Increase speed.
@@ -628,9 +619,6 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
         speed = 0;
       } else {
         dir = DIR_RIGHT;
-      }
-      if (lift_after_repeat) {
-        right_down = false;
       }
     }
 
