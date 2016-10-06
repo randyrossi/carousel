@@ -439,18 +439,18 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
           }
           lift_after_repeat = true;
           if (!carousel.reverse_keys) {
-            if (mme->xrel < 0) {
+            if (mme->xrel < 0 && now > left_down_repeat + 100) {
               left_down_repeat = now;
               left_down = true;
-            } else if (mme->xrel > 0) {
+            } else if (mme->xrel > 0 && now > right_down_repeat + 100) {
               right_down_repeat = now;
               right_down = true;
             }
           } else {
-            if (mme->xrel < 0) {
+            if (mme->xrel < 0 && now > right_down_repeat + 100) {
               right_down_repeat = now;
               right_down = true;
-            } else if (mme->xrel > 0) {
+            } else if (mme->xrel > 0 && now > left_down_repeat + 100) {
               left_down_repeat = now;
               left_down = true;
             }
@@ -597,7 +597,9 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
 
     // If left is down and it's time to repeat, do it now.
     if (left_down && now >= left_down_repeat) {
-      left_down_repeat = left_down_repeat + 1000;
+      if (!lift_after_repeat) {
+        left_down_repeat = left_down_repeat + 1000;
+      }
       dirty = true;
       if (dir == DIR_LEFT) {
         // Already moving in that dir. Increase speed.
@@ -609,9 +611,13 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       } else {
         dir = DIR_LEFT;
       }
-      if (lift_after_repeat) { left_down = false; }
+      if (lift_after_repeat) {
+        left_down = false;
+      }
     } else if (right_down && now >= right_down_repeat) {
-      right_down_repeat = right_down_repeat + 1000;
+      if (!lift_after_repeat) {
+        right_down_repeat = right_down_repeat + 1000;
+      }
       dirty = true;
       if (dir == DIR_RIGHT) {
         // Already moving in that dir. Increase speed.
@@ -623,7 +629,9 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       } else {
         dir = DIR_RIGHT;
       }
-      if (lift_after_repeat) { right_down = false; }
+      if (lift_after_repeat) {
+        right_down = false;
+      }
     }
 
     SDL_Delay(this_delay);
