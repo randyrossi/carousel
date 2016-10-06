@@ -439,18 +439,18 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
           }
           lift_after_repeat = true;
           if (!carousel.reverse_keys) {
-            if (mme->xrel < 0 && now > left_down_repeat + 100) {
+            if (mme->xrel < 0 && now > left_down_repeat + 200) {
               left_down_repeat = now;
               left_down = true;
-            } else if (mme->xrel > 0 && now > right_down_repeat + 100) {
+            } else if (mme->xrel > 0 && now > right_down_repeat + 200) {
               right_down_repeat = now;
               right_down = true;
             }
           } else {
-            if (mme->xrel < 0 && now > right_down_repeat + 100) {
+            if (mme->xrel < 0 && now > right_down_repeat + 200) {
               right_down_repeat = now;
               right_down = true;
-            } else if (mme->xrel > 0 && now > left_down_repeat + 100) {
+            } else if (mme->xrel > 0 && now > left_down_repeat + 200) {
               left_down_repeat = now;
               left_down = true;
             }
