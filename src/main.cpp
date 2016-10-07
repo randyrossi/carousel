@@ -422,7 +422,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       dirty = true;
     }
 
-    if (now >= next_volume) {
+    if (show_volume && now >= next_volume) {
       // Cancel volume controls
       show_volume = false;
       dirty = true;
