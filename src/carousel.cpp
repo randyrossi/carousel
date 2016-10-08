@@ -23,6 +23,7 @@ Carousel::Carousel()
       background_texture(NULL),
       screensaver_texture(NULL),
       volume_texture(NULL),
+      patience_texture(NULL),
       width(-1),
       height(-1),
       low_index(0),
@@ -221,12 +222,20 @@ bool Carousel::ParseConfig() {
 
       // Only output the record if all of the expected fields are present.
       std::string image, emu, rom;
+      bool patience = false;
 
       if (!(card.lookupValue("image", image) && card.lookupValue("emu", emu) &&
             card.lookupValue("rom", rom))) {
         std::cerr << "Config file contains invalid card index " << i
                   << std::endl;
         return false;
+      }
+
+      // patience
+      try {
+        patience = card.lookup("patience");
+      } catch (const libconfig::SettingNotFoundException& nfex) {
+        // ignore
       }
 
       if (all_emulators.find(emu) == all_emulators.end()) {
@@ -238,6 +247,7 @@ bool Carousel::ParseConfig() {
       carousel_card.image_filename = image;
       carousel_card.emu = emu;
       carousel_card.rom = rom;
+      carousel_card.patience = patience;
 
       all_cards.push_back(carousel_card);
     }

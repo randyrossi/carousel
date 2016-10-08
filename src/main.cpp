@@ -203,6 +203,9 @@ int main(int, char**) {
 
   int rc = rendering_loop(carousel, ren);
 
+  if (carousel.patience_texture != NULL) {
+    SDL_DestroyTexture(carousel.patience_texture);
+  }
   // Cleanup
   SDL_DestroyTexture(carousel.background_texture);
   for (int i = 0; i < carousel.num_slots; i++) {
@@ -267,6 +270,14 @@ bool move_right(carousel::Carousel& carousel, SDL_Renderer* ren) {
   return false;
 }
 
+bool patience_needed(carousel::Carousel& carousel) {
+  int selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
+                 carousel.all_cards.size();
+
+  return carousel.all_cards[selected].patience;
+}
+
+
 bool select_game(carousel::Carousel& carousel, bool screensaver) {
   // Don't process select if we are waking up from saver
   if (!screensaver) {
@@ -298,6 +309,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
   int dirty = true;
   bool ended = false;
   bool ignore_first_moust_motion = true;
+  bool showing_patience = false;
   int rc = 0;
 
   bool left_down = false;
@@ -359,6 +371,14 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       dirty = true;
     }
 
+    if (showing_patience && carousel.patience_texture == NULL) {
+      carousel.patience_texture = LoadTexture(ren, "patience.bmp");
+    }
+    if (!showing_patience && carousel.patience_texture != NULL) {
+      SDL_DestroyTexture(carousel.patience_texture);
+      carousel.patience_texture = NULL;
+    }
+
     if (dirty) {
       SDL_RenderClear(ren);
 
@@ -379,11 +399,20 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
       std::sort(render_order.begin(), render_order.end(), carousel::SortByY);
 
       if (!screensaver) {
-        SDL_RenderCopy(ren, carousel.background_texture, NULL, NULL);
-        for (size_t i = 0; i < render_order.size(); i++) {
-          SDL_RenderCopy(ren, carousel.carousel_image[render_order.at(i).index],
+        if (showing_patience) {
+          SDL_Rect dest;
+          dest.x = (carousel.width - 640) / 2;
+          dest.y = (carousel.height - 480) / 2;
+          dest.w = 640;
+          dest.h = 480;
+          SDL_RenderCopy(ren, carousel.patience_texture, NULL, &dest);
+        } else {
+          SDL_RenderCopy(ren, carousel.background_texture, NULL, NULL);
+          for (size_t i = 0; i < render_order.size(); i++) {
+            SDL_RenderCopy(ren, carousel.carousel_image[render_order.at(i).index],
                          NULL,
                          &carousel.carousel_pos[render_order.at(i).index]);
+          }
         }
       } else {
         // pick a random location for our screen saver img
@@ -493,8 +522,13 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
           }
           break;
         case SDL_MOUSEBUTTONUP:
-          ended = select_game(carousel, screensaver);
-          rc = 0;
+          if (!patience_needed(carousel) || showing_patience) {
+            ended = select_game(carousel, screensaver);
+            rc = 0;
+          } else {
+            showing_patience = true;
+            dirty = true;
+          }
           break;
         case SDL_KEYUP:
           switch (ke->keysym.sym) {
@@ -543,8 +577,13 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_LCTRL:
             // P2 fire
             case SDLK_a:
-              ended = select_game(carousel, screensaver);
-              rc = 0;
+              if (!patience_needed(carousel) || showing_patience) {
+                ended = select_game(carousel, screensaver);
+                rc = 0;
+              } else {
+                showing_patience = true;
+                dirty = true;
+              }
               break;
             default:
               break;

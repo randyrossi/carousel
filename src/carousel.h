@@ -33,6 +33,7 @@ struct CarouselCard {
   std::string image_filename;
   std::string emu;
   std::string rom;
+  bool patience;
 };
 
 struct Emulator {
@@ -56,6 +57,7 @@ class Carousel {
   SDL_Texture* background_texture;
   SDL_Texture* screensaver_texture;
   SDL_Texture* volume_texture;
+  SDL_Texture* patience_texture;
   std::vector<SDL_Texture*> carousel_image;
   std::vector<SDL_Rect> carousel_pos;
 
