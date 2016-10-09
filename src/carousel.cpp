@@ -232,11 +232,7 @@ bool Carousel::ParseConfig() {
       }
 
       // patience
-      try {
-        patience = card.lookup("patience");
-      } catch (const libconfig::SettingNotFoundException& nfex) {
-        // ignore
-      }
+      card.lookupValue("patience", patience);
 
       if (all_emulators.find(emu) == all_emulators.end()) {
         std::cerr << "Unknown emulator " << emu << " for card index " << i
