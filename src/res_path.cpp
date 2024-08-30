@@ -1,6 +1,6 @@
 #include "res_path.h"
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <iostream>
 
 namespace carousel {

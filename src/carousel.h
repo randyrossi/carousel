@@ -1,7 +1,7 @@
 #ifndef CAROUSEL_H
 #define CAROUSEL_H
 
-#include <SDL.h>
+#include <SDL2/SDL.h>
 #include <map>
 #include <string>
 #include <vector>
@@ -33,11 +33,19 @@ struct CarouselCard {
   std::string image_filename;
   std::string emu;
   std::string rom;
+  std::string genre;
   bool patience;
+  bool back;
 };
 
 struct Emulator {
   std::string cmd;
+};
+
+struct Genre {
+  std::vector<CarouselCard> all_cards;
+  std::string name;
+  std::string image_filename;
 };
 
 bool SortByY(const carousel::CarouselCard& lhs,
@@ -82,9 +90,11 @@ class Carousel {
   Uint8* blip_wav_buffer;
   SDL_AudioSpec click_wav_spec;
   SDL_AudioSpec blip_wav_spec;
+  Genre root_genre;
 
   std::map<std::string, Emulator> all_emulators;
-  std::vector<CarouselCard> all_cards;
+  std::map<std::string, Genre> all_genres;
+  std::vector<std::string> all_genre_names;
 
   Carousel();
   ~Carousel();

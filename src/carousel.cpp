@@ -211,6 +211,47 @@ bool Carousel::ParseConfig() {
     return false;
   }
 
+  root_genre.name = "root";
+  root_genre.image_filename = "";
+  all_genres["root"] = root_genre;
+  all_genre_names.push_back("root");
+
+  // Read genres
+  try {
+    Genre carousel_genre;
+    const libconfig::Setting& genres = root["genres"];
+    int count = genres.getLength();
+
+    for (int i = 0; i < count; ++i) {
+      const libconfig::Setting& genre = genres[i];
+
+      std::string name, img;
+      if (!(genre.lookupValue("name", name) &&
+            genre.lookupValue("image", img))) {
+        std::cerr << "Config file contains invalid genre entry :" << i
+                  << std::endl;
+        return false;
+      }
+
+      carousel_genre.name = name;
+      carousel_genre.image_filename = img;
+
+      all_genres[name] = carousel_genre;
+
+
+      all_genre_names.push_back(name);
+
+      CarouselCard carousel_card;
+      carousel_card.image_filename = img;
+      carousel_card.genre = name;
+      carousel_card.back = false;
+      all_genres["root"].all_cards.push_back(carousel_card);
+    }
+  } catch (const libconfig::SettingNotFoundException& nfex) {
+    std::cerr << "Config file is missing cards definition" << std::endl;
+    return false;
+  }
+
   // Add cards defined by config.
   try {
     CarouselCard carousel_card;
@@ -221,11 +262,11 @@ bool Carousel::ParseConfig() {
       const libconfig::Setting& card = cards[i];
 
       // Only output the record if all of the expected fields are present.
-      std::string image, emu, rom;
+      std::string image, emu, rom, genre;
       bool patience = false;
 
       if (!(card.lookupValue("image", image) && card.lookupValue("emu", emu) &&
-            card.lookupValue("rom", rom))) {
+            card.lookupValue("rom", rom) && card.lookupValue("genre", genre))) {
         std::cerr << "Config file contains invalid card index " << i
                   << std::endl;
         return false;
@@ -240,31 +281,56 @@ bool Carousel::ParseConfig() {
         return false;
       }
 
+      if (all_genres.find(genre) == all_genres.end()) {
+        std::cerr << "Unknown genre " << genre << " for card index " << i
+                  << std::endl;
+        return false;
+      }
+
       carousel_card.image_filename = image;
       carousel_card.emu = emu;
       carousel_card.rom = rom;
+      carousel_card.genre = genre;
       carousel_card.patience = patience;
+      carousel_card.back = false;
+      carousel_card.index = all_genres[genre].all_cards.size();
 
-      all_cards.push_back(carousel_card);
+      all_genres[genre].all_cards.push_back(carousel_card);
     }
   } catch (const libconfig::SettingNotFoundException& nfex) {
     std::cerr << "Config file is missing cards definition" << std::endl;
     return false;
   }
 
-  if (all_cards.empty()) {
-    std::cerr << "No carousel cards configured" << std::endl;
-    return false;
-  }
 
-  // Duplicate members of the list until we have at least NUM_CAROUSEL_SLOTS
+  // Duplicate members of the each list until we have at least num_slots
   // entries.
-  int repeat = 0;
-  while ((int)all_cards.size() < num_slots) {
-    carousel::CarouselCard card = all_cards.at(repeat);
-    card.index = all_cards.size();
-    all_cards.push_back(card);
-    repeat++;
+
+  for (unsigned int i = 0; i < all_genre_names.size(); ++i) {
+     std::string gn = all_genre_names.at(i);
+
+     if (all_genres[gn].all_cards.empty()) {
+       std::cerr << "No carousel cards configured for " << gn << std::endl;
+       return false;
+     }
+
+     int repeat = 0;
+     while ((int)all_genres[gn].all_cards.size() < num_slots) {
+       carousel::CarouselCard card = all_genres[gn].all_cards.at(repeat);
+       card.index = all_genres[gn].all_cards.size();
+       all_genres[gn].all_cards.push_back(card);
+       repeat++;
+     }
+
+     // Append a back card to each genre except root
+     if (gn != "root") {
+       CarouselCard back_card;
+       back_card.image_filename = "back.bmp";
+       back_card.genre = "";
+       back_card.back = true;
+       all_genres[gn].all_cards.push_back(back_card);
+     }
+
   }
 
   return true;

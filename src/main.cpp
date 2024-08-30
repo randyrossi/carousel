@@ -1,4 +1,4 @@
-#include <SDL.h>
+#include <SDL2/SDL.h>
 
 #include <algorithm>
 #include <iostream>
@@ -11,6 +11,15 @@
 #include "res_path.h"
 
 int rendering_loop(carousel::Carousel&, SDL_Renderer*);
+
+#define RC_INDIR 1
+#define RC_UPDIR 2
+#define RC_SELECT 3
+#define RC_QUIT 4
+
+std::string current_genre = "root";
+int g_start_index = 0;
+int g_genre_index = 0;
 
 SDL_Texture* LoadTexture(SDL_Renderer* ren, std::string file) {
   std::string imagePath = carousel::GetResourcePath() + file;
@@ -32,7 +41,49 @@ SDL_Texture* LoadTexture(SDL_Renderer* ren, std::string file) {
   return tex;
 }
 
+int get_selected_index(carousel::Carousel& carousel) {
+  return std::abs(carousel.low_index + carousel.num_slots / 2) %
+                  carousel.all_genres[current_genre].all_cards.size();
+}
+
+carousel::CarouselCard& getCard(carousel::Carousel& carousel, int index) {
+  return carousel.all_genres[current_genre].all_cards[index];
+}
+
+void saveSelection(carousel::Carousel& carousel) {
+  int selected = get_selected_index(carousel);
+
+  std::ofstream file;
+  file.open("/tmp/carousel.idx", std::ofstream::out);
+  if (!file.fail()) {
+    file << current_genre;
+    file << std::endl;
+    file << g_genre_index;
+    file << std::endl;
+    file << selected;
+    file << std::endl;
+  }
+  file.close();
+}
+
+int loadSelection(carousel::Carousel& carousel, int *start_index, int *genre_index) {
+  int index;
+  int index2;
+  std::ifstream file;
+  file.open("/tmp/carousel.idx");
+  if (!file.fail()) {
+    file >> current_genre;
+    file >> index;
+    file >> index2;
+    *genre_index = index;
+    *start_index = index2;
+  }
+  file.close();
+
+}
+
 int main(int, char**) {
+  int rc;
   carousel::Carousel carousel;
   if (!carousel.ParseConfig()) {
     std::cerr << "Could not parse config file" << std::endl;
@@ -171,37 +222,62 @@ int main(int, char**) {
     return 1;
   }
 
-  int start_index = 0;
-  std::ifstream last_index_file;
-  last_index_file.open("/tmp/carousel.idx");
-  if (!last_index_file.fail()) {
-    last_index_file >> start_index;
-  }
-  last_index_file.close();
-
-  carousel.low_index = start_index - carousel.num_slots / 2;
-  if (carousel.low_index < 0) {
-    carousel.low_index += carousel.all_cards.size();
-  }
-  carousel.high_index = start_index + carousel.num_slots / 2;
-  if (carousel.high_index >= (int)carousel.all_cards.size()) {
-    carousel.high_index -= (int)carousel.all_cards.size();
-  }
-
-  // Load the first carousel cards.
-  int card_index = carousel.low_index;
-  for (int i = 0; i < carousel.num_slots; i++) {
-    carousel.carousel_image[i] =
-        LoadTexture(ren, carousel.all_cards.at(card_index).image_filename);
-    card_index++;
-    if (card_index >= (int)carousel.all_cards.size()) {
-      card_index -= carousel.all_cards.size();
-    }
-  }
-
   SDL_ShowCursor(0);
 
-  int rc = rendering_loop(carousel, ren);
+  loadSelection(carousel, &g_start_index, &g_genre_index);
+
+  while (1) {
+
+    carousel.low_index = g_start_index - carousel.num_slots / 2;
+    if (carousel.low_index < 0) {
+      carousel.low_index += carousel.all_genres[current_genre].all_cards.size();
+    }
+    carousel.high_index = g_start_index + carousel.num_slots / 2;
+    if (carousel.high_index >= (int)carousel.all_genres[current_genre].all_cards.size()) {
+      carousel.high_index -= (int)carousel.all_genres[current_genre].all_cards.size();
+    }
+
+    // Load the first carousel cards.
+    int card_index = carousel.low_index;
+    for (int i = 0; i < carousel.num_slots; i++) {
+      carousel.carousel_image[i] =
+        LoadTexture(ren, carousel.all_genres[current_genre].all_cards.at(card_index).image_filename);
+      card_index++;
+      if (card_index >= (int)carousel.all_genres[current_genre].all_cards.size()) {
+        card_index -= carousel.all_genres[current_genre].all_cards.size();
+      }
+    }
+
+    rc = rendering_loop(carousel, ren);
+
+    saveSelection(carousel);
+
+    for (int i = 0; i < carousel.num_slots; i++) {
+      SDL_DestroyTexture(carousel.carousel_image[i]);
+    }
+
+    if (rc == RC_INDIR) {
+       int selected = get_selected_index(carousel);
+       g_genre_index = selected;
+       current_genre = getCard(carousel, selected).genre;
+    } else if (rc == RC_UPDIR) {
+       // Don't support nesting yet
+       current_genre = "root";
+       g_start_index = g_genre_index;
+    } else if (rc == RC_QUIT) {
+       if (current_genre == "root")
+          break;
+       else {
+          current_genre = "root";
+          g_start_index = g_genre_index;
+       }
+    } else {
+       // SELECTED
+       saveSelection(carousel);
+       break;
+    }
+
+  }
 
   if (carousel.patience_texture != NULL) {
     SDL_DestroyTexture(carousel.patience_texture);
@@ -214,6 +290,7 @@ int main(int, char**) {
     }
   }
 
+
 #ifdef ALSA_FOUND
   if (carousel.mixer_opened) {
     snd_mixer_close(carousel.handle);
@@ -223,16 +300,16 @@ int main(int, char**) {
   SDL_DestroyRenderer(ren);
   SDL_DestroyWindow(win);
   SDL_Quit();
-  return rc;
+  return rc == RC_SELECT ? 0 : 1;
 }
 
 bool move_left(carousel::Carousel& carousel, SDL_Renderer* ren) {
   carousel.low_index++;
-  if (carousel.low_index >= (int)carousel.all_cards.size()) {
+  if (carousel.low_index >= (int)carousel.all_genres[current_genre].all_cards.size()) {
     carousel.low_index = 0;
   }
   carousel.high_index++;
-  if (carousel.high_index >= (int)carousel.all_cards.size()) {
+  if (carousel.high_index >= (int)carousel.all_genres[current_genre].all_cards.size()) {
     carousel.high_index = 0;
   }
 
@@ -241,7 +318,7 @@ bool move_left(carousel::Carousel& carousel, SDL_Renderer* ren) {
     carousel.carousel_image[i] = carousel.carousel_image[i + 1];
   }
   carousel.carousel_image[carousel.num_slots - 1] = LoadTexture(
-      ren, carousel.all_cards.at(carousel.high_index).image_filename);
+      ren, carousel.all_genres[current_genre].all_cards.at(carousel.high_index).image_filename);
   if (carousel.carousel_image[carousel.num_slots - 1] == NULL) {
     return true;
   }
@@ -251,11 +328,11 @@ bool move_left(carousel::Carousel& carousel, SDL_Renderer* ren) {
 bool move_right(carousel::Carousel& carousel, SDL_Renderer* ren) {
   carousel.low_index--;
   if (carousel.low_index < 0) {
-    carousel.low_index = carousel.all_cards.size() - 1;
+    carousel.low_index = carousel.all_genres[current_genre].all_cards.size() - 1;
   }
   carousel.high_index--;
   if (carousel.high_index < 0) {
-    carousel.high_index = carousel.all_cards.size() - 1;
+    carousel.high_index = carousel.all_genres[current_genre].all_cards.size() - 1;
   }
 
   SDL_DestroyTexture(carousel.carousel_image[carousel.num_slots - 1]);
@@ -263,39 +340,37 @@ bool move_right(carousel::Carousel& carousel, SDL_Renderer* ren) {
     carousel.carousel_image[i] = carousel.carousel_image[i - 1];
   }
   carousel.carousel_image[0] = LoadTexture(
-      ren, carousel.all_cards.at(carousel.low_index).image_filename);
+      ren, carousel.all_genres[current_genre].all_cards.at(carousel.low_index).image_filename);
   if (carousel.carousel_image[0] == NULL) {
     return true;
   }
   return false;
 }
 
-bool patience_needed(carousel::Carousel& carousel) {
-  int selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
-                 carousel.all_cards.size();
 
-  return carousel.all_cards[selected].patience;
+bool patience_needed(carousel::Carousel& carousel) {
+  int selected = get_selected_index(carousel);
+  return carousel.all_genres[current_genre].all_cards[selected].patience;
 }
 
 
 bool select_game(carousel::Carousel& carousel, bool screensaver) {
   // Don't process select if we are waking up from saver
   if (!screensaver) {
-    int selected = std::abs(carousel.low_index + carousel.num_slots / 2) %
-                   carousel.all_cards.size();
+    int selected = get_selected_index(carousel);
 
-    std::ofstream last_index_file;
-    last_index_file.open("/tmp/carousel.idx", std::ofstream::out);
-    if (!last_index_file.fail()) {
-      last_index_file << selected;
-    }
-    last_index_file.close();
+    //std::ofstream last_index_file;
+    //last_index_file.open("/tmp/carousel.idx", std::ofstream::out);
+    //if (!last_index_file.fail()) {
+    //  last_index_file << selected;
+    //}
+    //last_index_file.close();
 
     carousel::Emulator emu =
-        carousel.all_emulators[carousel.all_cards[selected].emu];
+        carousel.all_emulators[carousel.all_genres[current_genre].all_cards[selected].emu];
     char cmd[512];
     snprintf(cmd, 512, emu.cmd.c_str(),
-             carousel.all_cards[selected].rom.c_str());
+            carousel.all_genres[current_genre].all_cards[selected].rom.c_str());
     std::cout << cmd << std::endl;
     return true;
   }
@@ -524,7 +599,13 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
         case SDL_MOUSEBUTTONUP:
           if (!patience_needed(carousel) || showing_patience) {
             ended = select_game(carousel, screensaver);
-            rc = 0;
+            if (getCard(carousel, get_selected_index(carousel)).emu == "")
+               if (getCard(carousel, get_selected_index(carousel)).back)
+                   rc = RC_UPDIR;
+               else
+                   rc = RC_INDIR;
+            else
+               rc = RC_SELECT;
           } else {
             showing_patience = true;
             dirty = true;
@@ -534,7 +615,7 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
           switch (ke->keysym.sym) {
             case SDLK_ESCAPE:
               ended = true;
-              rc = 1;
+              rc = RC_QUIT;
               break;
             case SDLK_UP:
 #ifdef ALSA_FOUND
@@ -579,7 +660,13 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
             case SDLK_a:
               if (!patience_needed(carousel) || showing_patience) {
                 ended = select_game(carousel, screensaver);
-                rc = 0;
+                if (getCard(carousel, get_selected_index(carousel)).emu == "")
+                   if (getCard(carousel, get_selected_index(carousel)).back)
+                       rc = RC_UPDIR;
+                   else
+                       rc = RC_INDIR;
+                else
+                   rc = RC_SELECT;
               } else {
                 showing_patience = true;
                 dirty = true;
