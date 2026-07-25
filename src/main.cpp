@@ -41,6 +41,56 @@ SDL_Texture* LoadTexture(SDL_Renderer* ren, std::string file) {
   return tex;
 }
 
+bool LoadImages(SDL_Renderer* ren,
+                const std::vector<carousel::CarouselCard>& cards,
+                std::map<std::string, SDL_Texture*>* images) {
+  for (size_t i = 0; i < cards.size(); ++i) {
+    const std::string& filename = cards[i].image_filename;
+    if (images->find(filename) != images->end()) {
+      continue;
+    }
+
+    SDL_Texture* texture = LoadTexture(ren, filename);
+    if (texture == NULL) {
+      for (std::map<std::string, SDL_Texture*>::iterator it = images->begin();
+           it != images->end(); ++it) {
+        SDL_DestroyTexture(it->second);
+      }
+      images->clear();
+      return false;
+    }
+    (*images)[filename] = texture;
+  }
+  return true;
+}
+
+void DestroyImages(std::map<std::string, SDL_Texture*>* images) {
+  for (std::map<std::string, SDL_Texture*>::iterator it = images->begin();
+       it != images->end(); ++it) {
+    SDL_DestroyTexture(it->second);
+  }
+  images->clear();
+}
+
+bool LoadCurrentGenreImages(carousel::Carousel& carousel, SDL_Renderer* ren) {
+  if (current_genre == "root") {
+    return LoadImages(ren, carousel.all_genres["root"].all_cards,
+                      &carousel.root_images);
+  }
+  if (!carousel.genre_images.empty()) {
+    return true;
+  }
+  return LoadImages(ren, carousel.all_genres[current_genre].all_cards,
+                    &carousel.genre_images);
+}
+
+SDL_Texture* CurrentImage(carousel::Carousel& carousel, const std::string& file) {
+  const std::map<std::string, SDL_Texture*>& images =
+      current_genre == "root" ? carousel.root_images : carousel.genre_images;
+  std::map<std::string, SDL_Texture*>::const_iterator image = images.find(file);
+  return image == images.end() ? NULL : image->second;
+}
+
 int get_selected_index(carousel::Carousel& carousel) {
   return std::abs(carousel.low_index + carousel.num_slots / 2) %
                   carousel.all_genres[current_genre].all_cards.size();
@@ -225,7 +275,27 @@ int main(int, char**) {
 
   loadSelection(&g_start_index, &g_genre_index);
 
+  // The root genre is the genre-selection screen, so its images stay loaded.
+  // A saved selection may start inside a child genre; load only that genre too.
+  if (!LoadImages(ren, carousel.all_genres["root"].all_cards,
+                  &carousel.root_images) ||
+      !LoadCurrentGenreImages(carousel, ren)) {
+    DestroyImages(&carousel.genre_images);
+    DestroyImages(&carousel.root_images);
+    SDL_DestroyTexture(carousel.volume_texture);
+    SDL_DestroyTexture(carousel.screensaver_texture);
+    SDL_DestroyTexture(carousel.background_texture);
+    SDL_DestroyRenderer(ren);
+    SDL_DestroyWindow(win);
+    SDL_Quit();
+    return 1;
+  }
+
   while (1) {
+
+    if (!LoadCurrentGenreImages(carousel, ren)) {
+      break;
+    }
 
     carousel.low_index = g_start_index - carousel.num_slots / 2;
     if (carousel.low_index < 0) {
@@ -239,8 +309,9 @@ int main(int, char**) {
     // Load the first carousel cards.
     int card_index = carousel.low_index;
     for (int i = 0; i < carousel.num_slots; i++) {
-      carousel.carousel_image[i] =
-        LoadTexture(ren, carousel.all_genres[current_genre].all_cards.at(card_index).image_filename);
+      carousel.carousel_image[i] = CurrentImage(
+          carousel,
+          carousel.all_genres[current_genre].all_cards.at(card_index).image_filename);
       card_index++;
       if (card_index >= (int)carousel.all_genres[current_genre].all_cards.size()) {
         card_index -= carousel.all_genres[current_genre].all_cards.size();
@@ -252,22 +323,25 @@ int main(int, char**) {
     saveSelection(carousel);
 
     for (int i = 0; i < carousel.num_slots; i++) {
-      SDL_DestroyTexture(carousel.carousel_image[i]);
+      carousel.carousel_image[i] = NULL;
     }
 
     if (rc == RC_INDIR) {
        int selected = get_selected_index(carousel);
        g_genre_index = selected;
        current_genre = getCard(carousel, selected).genre;
+       DestroyImages(&carousel.genre_images);
     } else if (rc == RC_UPDIR) {
        // Don't support nesting yet
        current_genre = "root";
+       DestroyImages(&carousel.genre_images);
        g_start_index = g_genre_index;
     } else if (rc == RC_QUIT) {
        if (current_genre == "root")
           break;
        else {
           current_genre = "root";
+          DestroyImages(&carousel.genre_images);
           g_start_index = g_genre_index;
        }
     } else {
@@ -283,11 +357,8 @@ int main(int, char**) {
   }
   // Cleanup
   SDL_DestroyTexture(carousel.background_texture);
-  for (int i = 0; i < carousel.num_slots; i++) {
-    if (carousel.carousel_image[i] != NULL) {
-      SDL_DestroyTexture(carousel.carousel_image[i]);
-    }
-  }
+  DestroyImages(&carousel.genre_images);
+  DestroyImages(&carousel.root_images);
 
 
 #ifdef ALSA_FOUND
@@ -302,7 +373,7 @@ int main(int, char**) {
   return rc == RC_SELECT ? 0 : 1;
 }
 
-bool move_left(carousel::Carousel& carousel, SDL_Renderer* ren) {
+bool move_left(carousel::Carousel& carousel) {
   carousel.low_index++;
   if (carousel.low_index >= (int)carousel.all_genres[current_genre].all_cards.size()) {
     carousel.low_index = 0;
@@ -312,19 +383,19 @@ bool move_left(carousel::Carousel& carousel, SDL_Renderer* ren) {
     carousel.high_index = 0;
   }
 
-  SDL_DestroyTexture(carousel.carousel_image[0]);
   for (int i = 0; i < carousel.num_slots - 1; i++) {
     carousel.carousel_image[i] = carousel.carousel_image[i + 1];
   }
-  carousel.carousel_image[carousel.num_slots - 1] = LoadTexture(
-      ren, carousel.all_genres[current_genre].all_cards.at(carousel.high_index).image_filename);
+  carousel.carousel_image[carousel.num_slots - 1] = CurrentImage(
+      carousel,
+      carousel.all_genres[current_genre].all_cards.at(carousel.high_index).image_filename);
   if (carousel.carousel_image[carousel.num_slots - 1] == NULL) {
     return true;
   }
   return false;
 }
 
-bool move_right(carousel::Carousel& carousel, SDL_Renderer* ren) {
+bool move_right(carousel::Carousel& carousel) {
   carousel.low_index--;
   if (carousel.low_index < 0) {
     carousel.low_index = carousel.all_genres[current_genre].all_cards.size() - 1;
@@ -334,12 +405,12 @@ bool move_right(carousel::Carousel& carousel, SDL_Renderer* ren) {
     carousel.high_index = carousel.all_genres[current_genre].all_cards.size() - 1;
   }
 
-  SDL_DestroyTexture(carousel.carousel_image[carousel.num_slots - 1]);
   for (int i = carousel.num_slots - 1; i >= 1; i--) {
     carousel.carousel_image[i] = carousel.carousel_image[i - 1];
   }
-  carousel.carousel_image[0] = LoadTexture(
-      ren, carousel.all_genres[current_genre].all_cards.at(carousel.low_index).image_filename);
+  carousel.carousel_image[0] = CurrentImage(
+      carousel,
+      carousel.all_genres[current_genre].all_cards.at(carousel.low_index).image_filename);
   if (carousel.carousel_image[0] == NULL) {
     return true;
   }
@@ -430,9 +501,9 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
                  dir * (sp / carousel.fps * (carousel.initial_speed + speed));
       if (spin_pos >= sp || spin_pos <= -sp) {
         if (dir == DIR_LEFT) {
-          ended = move_left(carousel, ren);
+          ended = move_left(carousel);
         } else if (dir == DIR_RIGHT) {
-          ended = move_right(carousel, ren);
+          ended = move_right(carousel);
         }
         spin_pos = 0;
         if (speed > 0) {

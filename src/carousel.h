@@ -66,6 +66,10 @@ class Carousel {
   SDL_Texture* screensaver_texture;
   SDL_Texture* volume_texture;
   SDL_Texture* patience_texture;
+  // Root images remain resident for the lifetime of the carousel.  Images for
+  // the selected genre are kept in genre_images and released when leaving it.
+  std::map<std::string, SDL_Texture*> root_images;
+  std::map<std::string, SDL_Texture*> genre_images;
   std::vector<SDL_Texture*> carousel_image;
   std::vector<SDL_Rect> carousel_pos;
 
