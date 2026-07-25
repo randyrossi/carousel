@@ -587,6 +587,10 @@ int rendering_loop(carousel::Carousel& carousel, SDL_Renderer* ren) {
     }
 
     if (dirty) {
+      // The loading indicator changes the renderer draw color while it is
+      // active. Set it explicitly so transparent screen saver images are
+      // composited over a black screen.
+      SDL_SetRenderDrawColor(ren, 0, 0, 0, 255);
       SDL_RenderClear(ren);
 
       carousel.SetCarouselPositions(spin_pos);
