@@ -66,7 +66,7 @@ void saveSelection(carousel::Carousel& carousel) {
   file.close();
 }
 
-int loadSelection(carousel::Carousel& carousel, int *start_index, int *genre_index) {
+void loadSelection(int *start_index, int *genre_index) {
   int index;
   int index2;
   std::ifstream file;
@@ -79,7 +79,6 @@ int loadSelection(carousel::Carousel& carousel, int *start_index, int *genre_ind
     *start_index = index2;
   }
   file.close();
-
 }
 
 int main(int, char**) {
@@ -224,7 +223,7 @@ int main(int, char**) {
 
   SDL_ShowCursor(0);
 
-  loadSelection(carousel, &g_start_index, &g_genre_index);
+  loadSelection(&g_start_index, &g_genre_index);
 
   while (1) {
 

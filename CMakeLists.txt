@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 project(Carousel)
 
-set(CMAKE_BUILD_TYPE,Debug)
+set(CMAKE_BUILD_TYPE,Release)
 
 # Use our modified FindSDL2* modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${Carousel_SOURCE_DIR}/cmake")
