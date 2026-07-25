@@ -1,6 +1,7 @@
 #include <SDL2/SDL.h>
 
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -41,15 +42,72 @@ SDL_Texture* LoadTexture(SDL_Renderer* ren, std::string file) {
   return tex;
 }
 
+void RenderLoadingIndicator(carousel::Carousel& carousel, SDL_Renderer* ren,
+                            size_t loaded, size_t total) {
+  // Keep the loading screen independent of any additional image resources.
+  // This is important because the images being loaded are the resources that
+  // normally make up the carousel itself.
+  SDL_RenderClear(ren);
+  SDL_RenderCopy(ren, carousel.background_texture, NULL, NULL);
+
+  SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_BLEND);
+  SDL_SetRenderDrawColor(ren, 0, 0, 0, 190);
+  SDL_Rect overlay = {0, 0, carousel.width, carousel.height};
+  SDL_RenderFillRect(ren, &overlay);
+
+  const int center_x = carousel.width / 2;
+  const int center_y = carousel.height / 2;
+  const int spokes = 12;
+  const int inner_radius = std::max(18, carousel.height / 45);
+  const int outer_radius = inner_radius + std::max(16, carousel.height / 30);
+  const double pi = 3.14159265358979323846;
+  const int active_spoke =
+      (SDL_GetTicks() / 80) % spokes;
+
+  for (int i = 0; i < spokes; ++i) {
+    const double angle = (2.0 * pi * i) / spokes;
+    const int x1 = center_x + static_cast<int>(std::cos(angle) * inner_radius);
+    const int y1 = center_y + static_cast<int>(std::sin(angle) * inner_radius);
+    const int x2 = center_x + static_cast<int>(std::cos(angle) * outer_radius);
+    const int y2 = center_y + static_cast<int>(std::sin(angle) * outer_radius);
+    const int distance = (i - active_spoke + spokes) % spokes;
+    const Uint8 alpha = static_cast<Uint8>(255 - distance * 16);
+    SDL_SetRenderDrawColor(ren, 255, 255, 255, alpha);
+    SDL_RenderDrawLine(ren, x1, y1, x2, y2);
+  }
+
+  const int bar_width = std::max(160, carousel.width / 5);
+  const int bar_height = 8;
+  const int bar_x = center_x - bar_width / 2;
+  const int bar_y = center_y + outer_radius + 24;
+  SDL_SetRenderDrawColor(ren, 90, 90, 90, 255);
+  SDL_Rect bar = {bar_x, bar_y, bar_width, bar_height};
+  SDL_RenderFillRect(ren, &bar);
+  if (total > 0) {
+    SDL_SetRenderDrawColor(ren, 255, 255, 255, 255);
+    bar.w = static_cast<int>(bar_width * loaded / total);
+    SDL_RenderFillRect(ren, &bar);
+  }
+
+  SDL_RenderPresent(ren);
+  SDL_SetRenderDrawBlendMode(ren, SDL_BLENDMODE_NONE);
+}
+
 bool LoadImages(SDL_Renderer* ren,
                 const std::vector<carousel::CarouselCard>& cards,
-                std::map<std::string, SDL_Texture*>* images) {
+                std::map<std::string, SDL_Texture*>* images,
+                carousel::Carousel* carousel = NULL) {
+  size_t loaded = 0;
   for (size_t i = 0; i < cards.size(); ++i) {
     const std::string& filename = cards[i].image_filename;
     if (images->find(filename) != images->end()) {
+      ++loaded;
       continue;
     }
 
+    if (carousel != NULL) {
+      RenderLoadingIndicator(*carousel, ren, loaded, cards.size());
+    }
     SDL_Texture* texture = LoadTexture(ren, filename);
     if (texture == NULL) {
       for (std::map<std::string, SDL_Texture*>::iterator it = images->begin();
@@ -60,6 +118,7 @@ bool LoadImages(SDL_Renderer* ren,
       return false;
     }
     (*images)[filename] = texture;
+    ++loaded;
   }
   return true;
 }
@@ -72,16 +131,19 @@ void DestroyImages(std::map<std::string, SDL_Texture*>* images) {
   images->clear();
 }
 
-bool LoadCurrentGenreImages(carousel::Carousel& carousel, SDL_Renderer* ren) {
+bool LoadCurrentGenreImages(carousel::Carousel& carousel, SDL_Renderer* ren,
+                            bool show_loading = false) {
   if (current_genre == "root") {
     return LoadImages(ren, carousel.all_genres["root"].all_cards,
-                      &carousel.root_images);
+                      &carousel.root_images,
+                      show_loading ? &carousel : NULL);
   }
   if (!carousel.genre_images.empty()) {
     return true;
   }
   return LoadImages(ren, carousel.all_genres[current_genre].all_cards,
-                    &carousel.genre_images);
+                    &carousel.genre_images,
+                    show_loading ? &carousel : NULL);
 }
 
 SDL_Texture* CurrentImage(carousel::Carousel& carousel, const std::string& file) {
@@ -278,8 +340,8 @@ int main(int, char**) {
   // The root genre is the genre-selection screen, so its images stay loaded.
   // A saved selection may start inside a child genre; load only that genre too.
   if (!LoadImages(ren, carousel.all_genres["root"].all_cards,
-                  &carousel.root_images) ||
-      !LoadCurrentGenreImages(carousel, ren)) {
+                  &carousel.root_images, &carousel) ||
+      !LoadCurrentGenreImages(carousel, ren, true)) {
     DestroyImages(&carousel.genre_images);
     DestroyImages(&carousel.root_images);
     SDL_DestroyTexture(carousel.volume_texture);
@@ -293,7 +355,7 @@ int main(int, char**) {
 
   while (1) {
 
-    if (!LoadCurrentGenreImages(carousel, ren)) {
+    if (!LoadCurrentGenreImages(carousel, ren, true)) {
       break;
     }
 
